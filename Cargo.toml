@@ -1,0 +1,10 @@
+[package]
+name = "Simple_Port_Scanner"
+version = "1.0.0"
+edition = "2024"
+
+[[bin]]
+name = "sps"
+path = "src/main.rs"
+
+[dependencies]
