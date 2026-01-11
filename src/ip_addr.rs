@@ -169,8 +169,8 @@ impl<'a> Iterator for IterPort<'a> {
 }
 
 mod tests {
-    use std::net::Ipv4Addr;
     #[allow(unused_imports)]
+    use std::net::Ipv4Addr;
     use super::{
         Host,
         IpAddr::{IPV4},
