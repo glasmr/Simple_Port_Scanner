@@ -1,21 +1,25 @@
 use std::fmt::Display;
-use crate::ip_addr::IpAddr::{IPV4, IPV6};
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub enum IpAddr {
-    IPV4(u8, u8, u8, u8),
-    IPV6(u16, u16, u16, u16, u16, u16, u16, u16)
+    IPV4(Ipv4Addr),
+    IPV6(Ipv6Addr),
 }
 
 impl Display for IpAddr {
     fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            IpAddr::IPV4(a,b,c,d) => {
-                write!(_f, "{a}.{b}.{c}.{d}")
+            IpAddr::IPV4(ip4) => {
+                let octets = ip4.octets();
+                write!(_f, "{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3])
             }
-            IpAddr::IPV6(a, b, c, d, e, f, g, h) => {
-                write!(_f, "{a:x}:{b:x}:{c:x}:{d:x}:{e:x}:{f:x}:{g:x}:{h:x}")
+            IpAddr::IPV6(ip6) => {
+                let octets = ip6.octets();
+                write!(_f, "{:x}{:x}:{:x}{:x}:{:x}{:x}:{:x}{:x}:{:x}{:x}:{:x}{:x}:{:x}{:x}:{:x}{:x}",
+                octets[0], octets[1], octets[2], octets[3], octets[4], octets[5], octets[6], octets[7],
+                       octets[8], octets[9], octets[10], octets[11], octets[12], octets[13], octets[14], octets[15])
             }
         }
     }
@@ -59,8 +63,9 @@ impl Host {
         if self.current == self.end {return None}
         let current = self.current.clone().unwrap();
         match current {
-            IpAddr::IPV4(a, b, c, d) => {
-                let (mut A, mut B, mut C, mut D) = (a, b, c, d);
+            IpAddr::IPV4(ip4) => {
+                let octets = ip4.octets();
+                let (mut A, mut B, mut C, mut D) = (octets[0], octets[1], octets[2], octets[3]);
                 if D < 255 {
                     D += 1
                 } else {
@@ -79,18 +84,19 @@ impl Host {
                         }
                     }
                 }
-                self.current = Some(IPV4(A, B, C, D));
+                self.current = Some(IpAddr::IPV4(Ipv4Addr::new(A, B, C, D)));
                 return self.current.clone();
             }
-            IpAddr::IPV6(a, b, c, d, e, f, g, h) => {
-                let mut values: [u16; 8] = [a, b, c, d, e, f, g, h];
+            IpAddr::IPV6(ip6) => {
+                let mut values: [u8; 16] = ip6.octets();
                 for i in values.len() - 1..0 {
-                    if values[i] < 65535 {
+                    if values[i] < 255 {
                         values[i] += 1;
                         break;
                     } else {values[i] = 0}
                 }
-                Some(IPV6(values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]))
+                self.current = Some(IpAddr::IPV6(Ipv6Addr::from(values)));
+                return self.current.clone();
             }
         }
     }
@@ -163,6 +169,7 @@ impl<'a> Iterator for IterPort<'a> {
 }
 
 mod tests {
+    use std::net::Ipv4Addr;
     #[allow(unused_imports)]
     use super::{
         Host,
@@ -171,13 +178,14 @@ mod tests {
     };
     #[test]
     fn test_ip_iter() {
-        let mut range = Host::range(IPV4(192, 168, 1, 1), IPV4(192, 168, 1, 5));
+        let mut range = Host::range(IPV4(Ipv4Addr::new(192, 168, 1, 1)),
+                                    IPV4(Ipv4Addr::new(192, 168, 1, 5)));
         let mut iter = range.iter();
-        assert_eq!(iter.next(), Some(IPV4(192, 168, 1, 1)));
-        assert_eq!(iter.next(), Some(IPV4(192, 168, 1, 2)));
-        assert_eq!(iter.next(), Some(IPV4(192, 168, 1, 3)));
-        assert_eq!(iter.next(), Some(IPV4(192, 168, 1, 4)));
-        assert_eq!(iter.next(), Some(IPV4(192, 168, 1, 5)));
+        assert_eq!(iter.next(), Some(IPV4(Ipv4Addr::new(192, 168, 1, 1))));
+        assert_eq!(iter.next(), Some(IPV4(Ipv4Addr::new(192, 168, 1, 2))));
+        assert_eq!(iter.next(), Some(IPV4(Ipv4Addr::new(192, 168, 1, 3))));
+        assert_eq!(iter.next(), Some(IPV4(Ipv4Addr::new(192, 168, 1, 4))));
+        assert_eq!(iter.next(), Some(IPV4(Ipv4Addr::new(192, 168, 1, 5))));
         assert_eq!(iter.next(), None);
     }
     #[test]
