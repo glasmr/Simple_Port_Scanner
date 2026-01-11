@@ -25,7 +25,7 @@ impl Display for IpAddr {
     }
 }
 
-
+#[derive(Debug)]
 pub struct Host {
     pub start: IpAddr,
     pub end: Option<IpAddr>,
@@ -118,6 +118,7 @@ impl<'a> Iterator for IterIp<'a> {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Port {
     pub start: u16,
     pub end: Option<u16>,
