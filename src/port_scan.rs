@@ -1,45 +1,73 @@
-use std::net::{Ipv4Addr, SocketAddr, TcpStream};
+use std::collections::HashMap;
+use std::net::{SocketAddr, TcpStream};
+use std::sync::Mutex;
 use std::time::Duration;
+use rayon::prelude::*;
 use crate::ip_addr::{Host, IpAddr, Port};
-use crate::parse_address::ScanInfo;
+use crate::parse_address::{ScanInfo, ScanType};
 
 pub fn port_scan(scan_info: &mut ScanInfo) {
-    if scan_info.syn {
-        syn_scan(scan_info.hosts.as_ref(), scan_info.ports.as_ref(), scan_info.timeout.clone().unwrap());
-    } else {
-        normal_scan(scan_info.hosts.as_mut(), scan_info.ports.as_mut(), scan_info.timeout.clone().unwrap());
-    }
+    let scan_result: HashMap<IpAddr, HashMap<u16, bool>>;
+    let hosts = expand_hosts_list(scan_info.hosts.as_mut());
+    let ports = expand_ports_list(scan_info.ports.as_mut());
+    scan(hosts, ports, scan_info.timeout.clone().unwrap(), scan_info.scan_type);
 }
 
-fn normal_scan(hosts: &mut Vec<Host>, ports: &mut Vec<Port>, timeout: u32) {
-    //Loop over hosts
+fn expand_hosts_list(hosts: &mut Vec<Host>) -> Vec<IpAddr> {
+    let mut host_vec: Vec<IpAddr> = Vec::new();
     for host in hosts {
         if host.is_range {
             for host_iter in host.iter() {
-                println!("Scanning host: {}", host_iter);
-                normal_check_open_ports(host_iter, ports, timeout);
+               host_vec.push(host_iter)
             }
         } else {
-            println!("Scanning host: {}", host.start);
-            normal_check_open_ports(host.start.clone(), ports, timeout);
+            host_vec.push(host.start.clone())
         }
     }
+    host_vec
 }
-
-fn normal_check_open_ports(host: IpAddr, ports: &mut Vec<Port>, timeout: u32)  {
-    //Loop over ports
+fn expand_ports_list(ports: &mut Vec<Port>) -> Vec<u16> {
+    let mut port_vec: Vec<u16> = Vec::new();
     for port in ports {
         if port.is_range {
             for port_iter in port.iter() {
-                normal_scan_port(host.clone(), port_iter, timeout);
+                port_vec.push(port_iter)
             }
         } else {
-            normal_scan_port(host.clone(), port.start.clone(), timeout);
+            port_vec.push(port.start.clone())
         }
     }
-
+    port_vec
 }
-fn normal_scan_port(host: IpAddr, port: u16, timeout: u32)  {
+
+fn scan(hosts: Vec<IpAddr>, ports: Vec<u16>, timeout: u32, scan_type: ScanType) -> HashMap<IpAddr, HashMap<u16, bool>> {
+    let mut result: HashMap<IpAddr, HashMap<u16, bool>> = HashMap::new();
+
+    for host in hosts {
+        let port_result: Mutex<HashMap<u16, bool>> = Mutex::new(HashMap::new());
+        match scan_type {
+            ScanType::Connect => {
+                ports.par_iter().for_each(|port| {
+                    let s_result = connect_scan_port(host.clone(), *port, timeout);
+                    port_result.lock().unwrap().insert(*port, s_result);
+                });
+            }
+            ScanType::Syn => {
+                ports.par_iter().for_each(|port| {
+                    let s_result = syn_scan_port(host.clone(), *port, timeout);
+                    port_result.lock().unwrap().insert(*port, s_result);
+                });
+            }
+            ScanType::UDP => {}
+        }
+        
+        result.insert(host, port_result.into_inner().unwrap());
+    }
+    result
+}
+
+
+fn connect_scan_port(host: IpAddr, port: u16, timeout: u32) -> bool {
     let socket_addr;
     match host {
         IpAddr::IPV4(ip4) => {
@@ -49,11 +77,18 @@ fn normal_scan_port(host: IpAddr, port: u16, timeout: u32)  {
             socket_addr = SocketAddr::from((ip6, port))
         }
     }
-    if let Ok(_stream) = TcpStream::connect_timeout(
+    if let Ok(stream) = TcpStream::connect_timeout(
         &socket_addr,
         Duration::from_millis(timeout as u64)) {
-        println!("Port {port} is open");
+        if let Ok(local) = stream.local_addr() {
+            if let Ok(peer) = stream.peer_addr() {
+                if local == peer {return false}
+            }
+        }
+        return true
     }
+    false
 }
 
-fn syn_scan(hosts: &Vec<Host>, ports: &Vec<Port>, timeout: u32) {unimplemented!()}
+
+fn syn_scan_port(host: IpAddr, port: u16, timeout: u32) -> bool {unimplemented!()}
