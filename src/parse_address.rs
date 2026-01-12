@@ -3,10 +3,24 @@
 use std::net::Ipv4Addr;
 use super::Args;
 use crate::ip_addr::{Host, IpAddr, Port};
-pub fn parse_arguments(args: &Args) -> (Vec<Host>, Vec<Port>) {
+
+pub struct ScanInfo {
+    pub hosts: Vec<Host>,
+    pub ports: Vec<Port>,
+    pub syn: bool,
+    pub timeout: Option<u32>
+}
+
+pub fn parse_arguments(args: &Args) -> ScanInfo {
     let host_str: String = args.host.clone();
     let port_str: String = args.port.clone();
-    (parse_host_v4(host_str), parse_port(port_str))
+    let (hosts_vec, ports_vec) = (parse_host_v4(host_str), parse_port(port_str));
+    ScanInfo {
+        hosts: hosts_vec,
+        ports: ports_vec,
+        syn: args.syn.clone(),
+        timeout: args.timeout.clone()
+    }
 }
 
 fn parse_host_v4(host: String) -> Vec<Host> {
