@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[allow(dead_code)]
 pub enum IpAddr {
     IPV4(Ipv4Addr),
