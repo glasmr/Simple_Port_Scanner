@@ -29,7 +29,7 @@ impl Display for IpAddr {
 pub struct Host {
     pub start: IpAddr,
     pub end: Option<IpAddr>,
-    is_range: bool,
+    pub is_range: bool,
     current: Option<IpAddr>
 }
 
@@ -122,6 +122,7 @@ impl<'a> Iterator for IterIp<'a> {
 pub struct Port {
     pub start: u16,
     pub end: Option<u16>,
+    pub is_range: bool,
     current: Option<u16>
 }
 
@@ -131,6 +132,7 @@ impl Port {
         Port {
             start,
             end: None,
+            is_range: false,
             current: None
         }
     }
@@ -138,6 +140,7 @@ impl Port {
         Port {
             start,
             end: Some(end),
+            is_range: true,
             current: None
         }
     }
