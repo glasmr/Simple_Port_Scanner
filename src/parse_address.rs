@@ -1,24 +1,37 @@
 //parse host and port strings and return Host and Port structs
 
 use std::net::Ipv4Addr;
-use super::Args;
+use super::{Arguments};
 use crate::ip_addr::{Host, IpAddr, Port};
 
+#[derive(Copy, Clone)]
+pub enum ScanType {
+    Connect,
+    Syn,
+    UDP
+}
 pub struct ScanInfo {
     pub hosts: Vec<Host>,
     pub ports: Vec<Port>,
-    pub syn: bool,
+    pub scan_type: ScanType,
     pub timeout: Option<u32>
 }
 
-pub fn parse_arguments(args: &Args) -> ScanInfo {
+pub fn parse_arguments(args: &Arguments) -> ScanInfo {
     let host_str: String = args.host.clone();
     let port_str: String = args.port.clone();
     let (hosts_vec, ports_vec) = (parse_host_v4(host_str), parse_port(port_str));
+    let scan_type: ScanType;
+    match (args.scan_options.connect, args.scan_options.syn, args.scan_options.udp) {
+        (true, false, false) => scan_type = ScanType::Connect,
+        (false, true, false) => scan_type = ScanType::Syn,
+        (false, false, true) => scan_type = ScanType::UDP,
+        _ => scan_type = ScanType::Connect
+    }
     ScanInfo {
         hosts: hosts_vec,
         ports: ports_vec,
-        syn: args.syn.clone(),
+        scan_type,
         timeout: args.timeout.clone()
     }
 }
