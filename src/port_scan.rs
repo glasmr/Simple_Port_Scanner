@@ -3,14 +3,22 @@ use std::net::{SocketAddr, TcpStream};
 use std::sync::Mutex;
 use std::time::Duration;
 use rayon::prelude::*;
+use std::collections::BTreeMap;
 use crate::ip_addr::{Host, IpAddr, Port};
 use crate::parse_address::{ScanInfo, ScanType};
+use crate::syn::scan_v4;
 
 pub fn port_scan(scan_info: &mut ScanInfo) {
-    let scan_result: HashMap<IpAddr, HashMap<u16, bool>>;
     let hosts = expand_hosts_list(scan_info.hosts.as_mut());
     let ports = expand_ports_list(scan_info.ports.as_mut());
-    scan(hosts, ports, scan_info.timeout.clone().unwrap(), scan_info.scan_type);
+    let scan_result: HashMap<IpAddr, BTreeMap<u16, bool>> = scan(hosts, ports, scan_info.timeout.clone().unwrap(), scan_info.scan_type);
+    scan_result.iter().for_each(|(ip, ports)| {
+        println!("Ports Scanner for {}", ip);
+        ports.iter().for_each(|port| {
+            println!("Port: {} | Status {}", port.0, match port.1 {true => "Open", false => "Closed"});
+        });
+        println!();
+    })
 }
 
 fn expand_hosts_list(hosts: &mut Vec<Host>) -> Vec<IpAddr> {
@@ -40,11 +48,11 @@ fn expand_ports_list(ports: &mut Vec<Port>) -> Vec<u16> {
     port_vec
 }
 
-fn scan(hosts: Vec<IpAddr>, ports: Vec<u16>, timeout: u32, scan_type: ScanType) -> HashMap<IpAddr, HashMap<u16, bool>> {
-    let mut result: HashMap<IpAddr, HashMap<u16, bool>> = HashMap::new();
+fn scan(hosts: Vec<IpAddr>, ports: Vec<u16>, timeout: u32, scan_type: ScanType) -> HashMap<IpAddr, BTreeMap<u16, bool>> {
+    let mut result: HashMap<IpAddr, BTreeMap<u16, bool>> = HashMap::new();
 
     for host in hosts {
-        let port_result: Mutex<HashMap<u16, bool>> = Mutex::new(HashMap::new());
+        let port_result: Mutex<BTreeMap<u16, bool>> = Mutex::new(BTreeMap::new());
         match scan_type {
             ScanType::Connect => {
                 ports.par_iter().for_each(|port| {
@@ -60,7 +68,7 @@ fn scan(hosts: Vec<IpAddr>, ports: Vec<u16>, timeout: u32, scan_type: ScanType) 
             }
             ScanType::UDP => {}
         }
-        
+
         result.insert(host, port_result.into_inner().unwrap());
     }
     result
@@ -91,4 +99,9 @@ fn connect_scan_port(host: IpAddr, port: u16, timeout: u32) -> bool {
 }
 
 
-fn syn_scan_port(host: IpAddr, port: u16, timeout: u32) -> bool {unimplemented!()}
+fn syn_scan_port(host: IpAddr, port: u16, timeout: u32) -> bool {
+    match host {
+        IpAddr::IPV4(ip4) => return scan_v4(ip4, port, timeout),
+        IpAddr::IPV6(_ip6) => return false
+    };
+}

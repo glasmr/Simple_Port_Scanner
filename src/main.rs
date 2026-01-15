@@ -1,11 +1,12 @@
 mod ip_addr;
 mod parse_address;
 mod port_scan;
+mod syn;
 
 use clap::{Args, Parser};
-use parse_address:: {
-    ScanInfo,
-    parse_arguments
+use parse_address::{
+    parse_arguments,
+    ScanInfo
 };
 use port_scan::port_scan;
 
@@ -43,5 +44,4 @@ fn main() {
     let args = Arguments::parse();
     let mut scan_options: ScanInfo = parse_arguments(&args);
     port_scan(&mut scan_options);
-
 }
