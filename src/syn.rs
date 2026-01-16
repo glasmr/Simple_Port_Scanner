@@ -58,13 +58,13 @@ fn socket_send_packet(packet: Vec<u8>, dst_ip: Ipv4Addr, dst_port: u16) {
 
 pub fn response_listener(src_ip: Ipv4Addr, target_ip: Ipv4Addr, src_port: u16, target_port: u16, timeout: Duration) -> bool {
     let listener = Socket::new(Domain::IPV4, Type::RAW, Some(Protocol::TCP)).unwrap();
+    listener.set_read_timeout(Some(timeout)).unwrap();
 
     let mut buf = [mem::MaybeUninit::<u8>::new(0u8); 1024];
 
     let now = Instant::now();
 
-    loop {
-        if now + timeout <= Instant::now() {break;}
+    while now + timeout <= Instant::now()  {
         let (bytes_read, _addr) = listener.recv_from(&mut buf).unwrap(); //TODO: if this doesnt read anything, it will block the loop, need solution
         let packet_slice = &buf[0..bytes_read];
         let packet_bytes: Vec<u8> = packet_slice.iter().map(|val| unsafe {val.assume_init()}).collect::<Vec<u8>>();
